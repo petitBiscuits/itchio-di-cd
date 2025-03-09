@@ -30,20 +30,20 @@ jobs:
       - name: 🔍 Check if Prebuilt Image Exists
         id: check-image
         run: |
-          IMAGE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://ghcr.io/v2/${{ github.actor }}/bevy-wasm-base/tags/list)
-          
-          if [ "$IMAGE_EXISTS" == "200" ] && [ "${{ github.event.inputs.force_prebuild }}" != "true" ]; then
-            echo "Prebuilt image already exists. Skipping build."
+          IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
+          IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')
+
+          # Try pulling the image metadata without authentication (for public images)
+          if curl -s https://ghcr.io/v2/${{ github.actor }}/bevy-wasm-base/tags/list | grep -q 'name'; then
+            echo "✅ Prebuilt image exists on GHCR."
             echo "skip_build=true" >> $GITHUB_ENV
           else
-            echo "Prebuilt image does not exist OR manually triggered."
+            echo "⚠️ Prebuilt image NOT found OR manually triggered."
             echo "skip_build=false" >> $GITHUB_ENV
           fi
 
       - name: 🛠 Build & Push Prebuilt Image (Only if Needed)
-        if: env.skip_build != 'true'
+        if: ${{ env.skip_build != 'true' }}
         run: |
           IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
           IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')  # Convert to lowercase
