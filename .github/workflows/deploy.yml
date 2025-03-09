@@ -26,7 +26,7 @@ jobs:
           docker rm bevy-container
 
       - name: 📤 Upload Artifact (For Debugging)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: web_build
           path: web_build/
