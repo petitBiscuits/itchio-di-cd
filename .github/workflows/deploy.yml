@@ -130,4 +130,4 @@ jobs:
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
         run: |
-          butler push web_build petitBiscuits/procedural_test_ci:web
+          butler push web_build petitBiscuits/procedural-test-ci:web
