@@ -1,5 +1,5 @@
 ﻿# Use prebuilt Rust + WASM + Bevy image from GHCR
-FROM ghcr.io/YOUR_GITHUB_USERNAME/bevy-wasm-base:latest AS builder
+FROM ghcr.io/petitbiscuits/bevy-wasm-base:latest AS builder
 
 # Set working directory
 WORKDIR /app
