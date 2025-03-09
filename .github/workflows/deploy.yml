@@ -69,7 +69,12 @@ jobs:
 
       - name: 🐳 Pull Prebuilt Docker Image
         run: |
-          docker pull ghcr.io/${{ github.actor }}/bevy-wasm-base
+          # Convert repository name to lowercase
+          IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
+          IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')
+          
+          # Pull the prebuilt image
+          docker pull $IMAGE_NAME_LOWER
 
       - name: 🐳 Build the Game Using Prebuilt Image
         run: |
