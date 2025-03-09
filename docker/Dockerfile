@@ -24,7 +24,7 @@ COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Copy the compiled WebAssembly artifacts to Nginx’s default web root
 COPY nginx/index.html /usr/share/nginx/html/index.html
-COPY --from=builder /app/out /usr/share/nginx/html/
+COPY --from=builder /app/out /usr/share/nginx/html/out
 
 # Expose the correct port
 EXPOSE 4000
