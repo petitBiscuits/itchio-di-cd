@@ -1,0 +1,66 @@
+﻿name: Deploy Bevy Game to Itch.io
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: 🏗 Build Bevy in Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 🐳 Build the Docker image
+        run: |
+          docker build -t bevy-wasm-nginx -f docker/Dockerfile .
+
+      - name: 📂 Extract WebAssembly Build Files from Docker
+        run: |
+          mkdir -p web_build
+          docker create --name bevy-container bevy-wasm-nginx
+          docker cp bevy-container:/usr/share/nginx/html/. web_build/
+          docker rm bevy-container
+
+      - name: 📤 Upload Artifact (For Debugging)
+        uses: actions/upload-artifact@v3
+        with:
+          name: web_build
+          path: web_build/
+
+  deploy:
+    name: 🚀 Deploy to Itch.io
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: ⬇️ Download Built Files
+        uses: actions/download-artifact@v3
+        with:
+          name: web_build
+          path: web_build
+
+      - name: 📦 Install Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/latest
+          unzip butler.zip -d /usr/local/bin/
+          chmod +x /usr/local/bin/butler
+          butler -V  # Verify installation
+
+      - name: 🔑 Authenticate with Butler
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          echo "$BUTLER_API_KEY" | butler login
+
+      - name: 🚀 Deploy to Itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          butler push web_build petitBiscuits/procedural_test_ci:web
