@@ -1,0 +1,12 @@
+﻿# Ignore compiled artifacts
+target/
+out/
+webbuild/
+.dockerignore
+Dockerfile
+docker/
+
+# Ignore git and IDE files
+.git/
+*.log
+*.tmp
