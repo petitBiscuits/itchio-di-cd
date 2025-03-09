@@ -45,8 +45,12 @@ jobs:
       - name: 🛠 Build & Push Prebuilt Image (Only if Needed)
         if: env.skip_build != 'true'
         run: |
-          docker build -t ghcr.io/${{ github.actor }}/bevy-wasm-base -f docker/Dockerfile.prebuild .
-          docker push ghcr.io/${{ github.actor }}/bevy-wasm-base
+          IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
+          IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')  # Convert to lowercase
+
+          docker build -t $IMAGE_NAME_LOWER -f docker/Dockerfile.prebuild .
+          docker push $IMAGE_NAME_LOWER
+  
 
   build:
     name: 🏗 Build Bevy Game in Docker
