@@ -3,61 +3,14 @@
 on:
   push:
     branches:
-      - main  # Triggers normal game builds
-  workflow_dispatch:  # Allows manual triggering (for prebuilding)
-    inputs:
-      force_prebuild:
-        description: "Force prebuild of Bevy base image"
-        required: false
-        default: "false"
+      - main
 
 jobs:
-  prebuild:
-    name: 🏗 Prebuild Rust + Bevy Image (If Needed)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      packages: write  # Needed to push to GHCR
-
-    steps:
-      - name: 🔄 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🔑 Log in to GitHub Container Registry (GHCR)
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: 🔍 Check if Prebuilt Image Exists
-        id: check-image
-        run: |
-          IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
-          IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')
-
-          # Try pulling the image metadata without authentication (for public images)
-          if curl -s https://ghcr.io/v2/${{ github.actor }}/bevy-wasm-base/tags/list | grep -q 'name'; then
-            echo "✅ Prebuilt image exists on GHCR."
-            echo "skip_build=true" >> $GITHUB_ENV
-          else
-            echo "⚠️ Prebuilt image NOT found OR manually triggered."
-            echo "skip_build=false" >> $GITHUB_ENV
-          fi
-
-      - name: 🛠 Build & Push Prebuilt Image (Only if Needed)
-        if: ${{ env.skip_build != 'true' }}
-        run: |
-          IMAGE_NAME="ghcr.io/${{ github.actor }}/bevy-wasm-base"
-          IMAGE_NAME_LOWER=$(echo $IMAGE_NAME | tr '[:upper:]' '[:lower:]')  # Convert to lowercase
-
-          docker build -t $IMAGE_NAME_LOWER -f docker/Dockerfile.prebuild .
-          docker push $IMAGE_NAME_LOWER
-  
-
   build:
     name: 🏗 Build Bevy Game in Docker
     runs-on: ubuntu-latest
-    needs: prebuild  # Wait for prebuild if triggered
     permissions:
-      packages: read  # Needed to pull from GHCR
+      packages: read
 
     steps:
       - name: 🔄 Checkout repository
