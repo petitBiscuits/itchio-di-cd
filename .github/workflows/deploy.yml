@@ -3,18 +3,71 @@
 on:
   push:
     branches:
-      - main
+      - main  # Triggers normal game builds
+  workflow_dispatch:  # Allows manual triggering (for prebuilding)
+    inputs:
+      force_prebuild:
+        description: "Force prebuild of Bevy base image"
+        required: false
+        default: "false"
 
 jobs:
-  build:
-    name: 🏗 Build Bevy in Docker
+  prebuild:
+    name: 🏗 Prebuild Rust + Bevy Image (If Needed)
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      packages: write  # Needed to push to GHCR
 
     steps:
       - name: 🔄 Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: 🐳 Build the Docker image
+      - name: 🔑 Log in to GitHub Container Registry (GHCR)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: 🔍 Check if Prebuilt Image Exists
+        id: check-image
+        run: |
+          IMAGE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://ghcr.io/v2/${{ github.actor }}/bevy-wasm-base/tags/list)
+          
+          if [ "$IMAGE_EXISTS" == "200" ] && [ "${{ github.event.inputs.force_prebuild }}" != "true" ]; then
+            echo "Prebuilt image already exists. Skipping build."
+            echo "skip_build=true" >> $GITHUB_ENV
+          else
+            echo "Prebuilt image does not exist OR manually triggered."
+            echo "skip_build=false" >> $GITHUB_ENV
+          fi
+
+      - name: 🛠 Build & Push Prebuilt Image (Only if Needed)
+        if: env.skip_build != 'true'
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/bevy-wasm-base -f docker/Dockerfile.prebuild .
+          docker push ghcr.io/${{ github.actor }}/bevy-wasm-base
+
+  build:
+    name: 🏗 Build Bevy Game in Docker
+    runs-on: ubuntu-latest
+    needs: prebuild  # Wait for prebuild if triggered
+    permissions:
+      packages: read  # Needed to pull from GHCR
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔑 Log in to GitHub Container Registry (GHCR)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: 🐳 Pull Prebuilt Docker Image
+        run: |
+          docker pull ghcr.io/${{ github.actor }}/bevy-wasm-base
+
+      - name: 🐳 Build the Game Using Prebuilt Image
         run: |
           docker build -t bevy-wasm-nginx -f docker/Dockerfile .
 
@@ -38,17 +91,22 @@ jobs:
 
     steps:
       - name: 🔄 Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: ⬇️ Download Built Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: web_build
           path: web_build
 
       - name: 📦 Install Butler
         run: |
-          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/latest
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          FILE_SIZE=$(stat -c%s "butler.zip")
+          if [ "$FILE_SIZE" -lt 1000 ]; then
+            echo "❌ ERROR: Butler ZIP file is too small or corrupted!"
+            exit 1
+          fi
           unzip butler.zip -d /usr/local/bin/
           chmod +x /usr/local/bin/butler
           butler -V  # Verify installation

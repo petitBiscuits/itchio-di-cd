@@ -1,0 +1,19 @@
+﻿# Use the Rust base image
+FROM rust:latest AS bevy-base
+
+# Install WASM toolchain and wasm-bindgen-cli
+RUN rustup target add wasm32-unknown-unknown && \
+    cargo install wasm-bindgen-cli
+
+# Set up a working directory
+WORKDIR /app
+
+# Copy dependency files (Cargo.toml & Cargo.lock)
+COPY Cargo.toml Cargo.lock ./
+
+# ✅ Pre-fetch Bevy and all dependencies (cache them)
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo fetch
+
+# Default command (for debugging)
+CMD ["bash"]
