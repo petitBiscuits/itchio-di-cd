@@ -1,4 +1,5 @@
-﻿use bevy::prelude::*;
+﻿use bevy::asset::AssetMetaCheck;
+use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, Material2dPlugin};
 
@@ -81,7 +82,10 @@ fn zoom_out_camera(
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(AssetPlugin{
+            meta_check : AssetMetaCheck::Never,
+            ..default()
+        }))
         .add_plugins(Material2dPlugin::<MandelbrotMaterial>::default())
         .add_systems(Startup, setup)
         .add_systems(Update, animate_mandelbrot)
