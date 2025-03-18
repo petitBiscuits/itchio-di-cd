@@ -1,19 +1,24 @@
 ﻿use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
-use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::sprite::{Material2d, Material2dPlugin};
 
-#[derive(Asset,AsBindGroup, TypePath, Debug, Clone)]
+const MOVEMENT_SPEED: f32 = 0.1;
+
+#[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]
 pub struct MandelbrotMaterial {
     #[uniform(0)]
     pub time: f32,
     #[uniform(0)]
     pub zoom: f32,
     #[uniform(0)]
-    pub zoom1: f32,
+    pub offsetx: f32,
     #[uniform(0)]
-    pub zoom2: f32,
+    pub offsety: f32,
+}
+#[derive(Resource)]
+struct Manager {
+    value: bool,
 }
 
 impl Material2d for MandelbrotMaterial {
@@ -45,8 +50,8 @@ fn setup(
     let material = materials.add(MandelbrotMaterial {
         time: 0.0,
         zoom: 1.0,
-        zoom1: 1.0,
-        zoom2: 1.0,
+        offsetx: 0.0,
+        offsety: 0.0,
     });
 
     commands.spawn((
@@ -54,43 +59,91 @@ fn setup(
         MeshMaterial2d(material),
         Transform::default().with_scale(Vec3::splat(128.)),
     ));
+
+    commands.spawn((
+        Text::default(),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        },
+    ));
+
+    commands.insert_resource(Manager { value: true });
 }
 
 fn animate_mandelbrot(
     time: Res<Time>,
     mut materials: ResMut<Assets<MandelbrotMaterial>>,
+    mut text: Single<&mut Text>,
+    manager: ResMut<Manager>,
 ) {
     // Update the time uniform for every MandelbrotMaterial.
     for (_id, material) in materials.iter_mut() {
-        material.time += time.delta_secs();
+        if manager.value {
+            material.time += time.delta_secs();
+        }
+
+        text.0 = "Mandelbrot set!\n".to_string();
+        text.push_str(&format!("exponents: {}\n", material.time / 2.));
+        text.push_str(&format!(
+            "offset: ({}, {})\n",
+            material.offsetx, material.offsety
+        ));
+        text.push_str(&format!("zoom: {}\n", material.zoom));
     }
 }
 
 fn zoom_out_camera(
     keys: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut OrthographicProjection, With<Camera2d>>,
+    mut materials: ResMut<Assets<MandelbrotMaterial>>,
+    mut manager: ResMut<Manager>,
 ) {
-    if keys.pressed(KeyCode::ArrowUp) {
-        for mut proj in query.iter_mut() {
-            proj.scale *= 1.1;
-        }
+    let mut zoom: f32 = 1.0;
+    let mut offset: Vec2 = Vec2::new(0.0, 0.0);
+
+    for (_id, material) in materials.iter_mut() {
+        zoom = material.zoom;
+        offset = Vec2::new(material.offsetx, material.offsety);
     }
+
     if keys.pressed(KeyCode::ArrowDown) {
-        for mut proj in query.iter_mut() {
-            proj.scale *= 0.9;
-        }
+        zoom *= 1.1;
+    }
+    if keys.pressed(KeyCode::ArrowUp) {
+        zoom *= 0.9;
     }
     if keys.pressed(KeyCode::ArrowLeft) {
-        for mut proj in query.iter_mut() {
-            proj.scale = 2.0;
-        }
+        zoom = 1.;
+    }
+    if keys.pressed(KeyCode::KeyW) {
+        offset += Vec2::new(0.0, MOVEMENT_SPEED) * zoom;
+    }
+    if keys.pressed(KeyCode::KeyS) {
+        offset += Vec2::new(0.0, -MOVEMENT_SPEED) * zoom;
+    }
+    if keys.pressed(KeyCode::KeyA) {
+        offset += Vec2::new(-MOVEMENT_SPEED, 0.0) * zoom;
+    }
+    if keys.pressed(KeyCode::KeyD) {
+        offset += Vec2::new(MOVEMENT_SPEED, 0.0) * zoom;
+    }
+    if keys.just_pressed(KeyCode::Space) {
+        manager.value = !manager.value;
+    }
+
+    for (_id, material) in materials.iter_mut() {
+        material.zoom = zoom;
+        material.offsetx = offset.x;
+        material.offsety = offset.y;
     }
 }
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(AssetPlugin{
-            meta_check : AssetMetaCheck::Never,
+        .add_plugins(DefaultPlugins.set(AssetPlugin {
+            meta_check: AssetMetaCheck::Never,
             ..default()
         }))
         .add_plugins(Material2dPlugin::<MandelbrotMaterial>::default())
