@@ -1,6 +1,7 @@
 ﻿use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::sprite::{Material2d, Material2dPlugin};
 
 #[derive(Asset,AsBindGroup, TypePath, Debug, Clone)]
@@ -9,6 +10,10 @@ pub struct MandelbrotMaterial {
     pub time: f32,
     #[uniform(0)]
     pub zoom: f32,
+    #[uniform(0)]
+    pub zoom1: f32,
+    #[uniform(0)]
+    pub zoom2: f32,
 }
 
 impl Material2d for MandelbrotMaterial {
@@ -40,6 +45,8 @@ fn setup(
     let material = materials.add(MandelbrotMaterial {
         time: 0.0,
         zoom: 1.0,
+        zoom1: 1.0,
+        zoom2: 1.0,
     });
 
     commands.spawn((

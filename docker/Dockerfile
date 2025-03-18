@@ -8,7 +8,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 
 # Copy the actual source files
-COPY src ./src
+COPY . .
 
 # ✅ Now build the project (dependencies are already cached!)
 RUN cargo build --release --target wasm32-unknown-unknown
@@ -25,7 +25,7 @@ COPY nginx/nginx.conf /etc/nginx/nginx.conf
 # Copy the compiled WebAssembly artifacts to Nginx’s default web root
 COPY nginx/index.html /usr/share/nginx/html/index.html
 COPY --from=builder /app/out /usr/share/nginx/html/out
-COPY assets /usr/share/nginx/html/assets
+COPY --from=builder /app/assets /usr/share/nginx/html/assets
 
 # Expose the correct port
 EXPOSE 4000
